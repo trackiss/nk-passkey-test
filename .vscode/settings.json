@@ -1,0 +1,15 @@
+{
+  "python.analysis.typeCheckingMode": "off",
+  "python.languageServer": "None",
+
+  "ruff.nativeServer": "on",
+  "ruff.path": [".venv/bin/ruff"],
+
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  }
+}
