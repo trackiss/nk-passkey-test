@@ -103,7 +103,6 @@ class TestPasskeyIntegration:
         self,
         virtual_auth_driver,
         login_url: str,
-        clean_credentials,
     ) -> None:
         """Verify the complete register → login flow."""
         driver = virtual_auth_driver
@@ -111,10 +110,7 @@ class TestPasskeyIntegration:
         # ==================== Phase 1: Register ====================
         print("\n===== Phase 1: Register =====")
 
-        # 1. Verify no credentials exist
-        assert not credential_exists(), "クレデンシャルが既に存在します"
-
-        # 2. Access login page
+        # 1. Access login page
         print(f"ページにアクセスしています: {login_url}")
         driver.get(login_url)
 

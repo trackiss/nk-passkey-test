@@ -7,10 +7,6 @@ from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.virtual_authenticator import VirtualAuthenticatorOptions
 
-import shutil
-
-from nk_passkey_test.common import CREDENTIALS_DIR
-
 
 @pytest.fixture()
 def driver():
@@ -48,13 +44,3 @@ def login_url():
     if not url:
         pytest.skip("NK_LOGIN_URL が .env に設定されていません")
     return url
-
-
-@pytest.fixture()
-def clean_credentials():
-    """Remove credentials directory before and after test."""
-    if CREDENTIALS_DIR.exists():
-        shutil.rmtree(CREDENTIALS_DIR)
-    yield CREDENTIALS_DIR
-    if CREDENTIALS_DIR.exists():
-        shutil.rmtree(CREDENTIALS_DIR)
