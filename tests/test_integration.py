@@ -1,8 +1,11 @@
 """Integration test: register → login sequential execution."""
 
 import json
+from pathlib import Path
 
+from selenium import webdriver as wd
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.virtual_authenticator import VirtualAuthenticatorOptions
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -10,7 +13,7 @@ from nk_passkey_test.common import (
     LOGIN_TITLE_KEYWORDS,
     credential_exists,
     extract_domain,
-    load_credentials,
+    load_credentials_from,
     save_credentials,
 )
 from nk_passkey_test.login import LOGIN_DETECT_TIMEOUT, SELECTOR_PASSKEY_LOGIN
@@ -22,6 +25,65 @@ from nk_passkey_test.register import (
 )
 
 HUMAN_TIMEOUT = 300
+
+
+def _do_passkey_login(login_url: str, cred_file: Path) -> None:
+    """Perform a single passkey login.
+
+    Launches a fresh browser, loads credentials from the given file,
+    and performs passkey login.
+    """
+    options = wd.ChromeOptions()
+    options.add_experimental_option("detach", False)
+    login_driver = wd.Chrome(options=options)
+
+    try:
+        va_opts = VirtualAuthenticatorOptions(
+            protocol="ctap2",
+            transport="internal",
+            has_resident_key=True,
+            has_user_verification=True,
+            is_user_consenting=True,
+            is_user_verified=True,
+        )
+        login_driver.add_virtual_authenticator(va_opts)
+
+        # Load credentials and inject
+        creds = load_credentials_from(cred_file)
+        for cred in creds:
+            login_driver.add_credential(cred)
+        print(f"クレデンシャルを {len(creds)} 件読み込みました。")
+
+        # Access login page
+        print(f"ページにアクセスしています: {login_url}")
+        login_driver.get(login_url)
+
+        # Click passkey login button
+        login_wait = WebDriverWait(login_driver, WAIT_TIMEOUT)
+        print("パスキーログインボタンを探しています...")
+        passkey_login_btn = login_wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, SELECTOR_PASSKEY_LOGIN))
+        )
+        passkey_login_btn.click()
+        print("パスキーログインを実行中...")
+
+        # Wait for login success
+        WebDriverWait(login_driver, LOGIN_DETECT_TIMEOUT).until(
+            lambda d: all(kw not in d.title for kw in LOGIN_TITLE_KEYWORDS)
+        )
+        page_title = login_driver.title
+        print(f"ログイン後のページタイトル: {page_title}")
+
+        for kw in LOGIN_TITLE_KEYWORDS:
+            assert kw not in page_title, (
+                f"ページタイトルに '{kw}' が含まれています: {page_title}"
+            )
+
+    finally:
+        try:
+            login_driver.quit()
+        except Exception:
+            pass
 
 
 class TestPasskeyIntegration:
@@ -142,66 +204,7 @@ class TestPasskeyIntegration:
 
         # ==================== Phase 2: Login ====================
         print("\n===== Phase 2: Login =====")
-
-        # 1. Verify credentials exist
         assert credential_exists(), "クレデンシャルが存在しません"
 
-        # 2. Launch new browser + configure Virtual Authenticator
-        from selenium import webdriver as wd
-        from selenium.webdriver.common.virtual_authenticator import (
-            VirtualAuthenticatorOptions,
-        )
-
-        options = wd.ChromeOptions()
-        options.add_experimental_option("detach", False)
-        login_driver = wd.Chrome(options=options)
-
-        try:
-            va_opts = VirtualAuthenticatorOptions(
-                protocol="ctap2",
-                transport="internal",
-                has_resident_key=True,
-                has_user_verification=True,
-                is_user_consenting=True,
-                is_user_verified=True,
-            )
-            login_driver.add_virtual_authenticator(va_opts)
-
-            # 3. Load credentials and inject
-            creds = load_credentials()
-            for cred in creds:
-                login_driver.add_credential(cred)
-            print(f"クレデンシャルを {len(creds)} 件読み込みました。")
-
-            # 4. Access login page
-            print(f"ページにアクセスしています: {login_url}")
-            login_driver.get(login_url)
-
-            # 5. Click passkey login button
-            login_wait = WebDriverWait(login_driver, WAIT_TIMEOUT)
-            print("パスキーログインボタンを探しています...")
-            passkey_login_btn = login_wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, SELECTOR_PASSKEY_LOGIN))
-            )
-            passkey_login_btn.click()
-            print("パスキーログインを実行中...")
-
-            # 6. Wait for login success (automatic, 60 seconds)
-            WebDriverWait(login_driver, LOGIN_DETECT_TIMEOUT).until(
-                lambda d: all(kw not in d.title for kw in LOGIN_TITLE_KEYWORDS)
-            )
-            page_title = login_driver.title
-            print(f"ログイン後のページタイトル: {page_title}")
-
-            # 7. Login assertions
-            for kw in LOGIN_TITLE_KEYWORDS:
-                assert kw not in page_title, (
-                    f"ページタイトルに '{kw}' が含まれています: {page_title}"
-                )
-            print("Phase 2 (Login) 完了")
-
-        finally:
-            try:
-                login_driver.quit()
-            except Exception:
-                pass
+        _do_passkey_login(login_url, saved_path)
+        print("Phase 2 (Login) 完了")

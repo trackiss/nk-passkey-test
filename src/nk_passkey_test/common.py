@@ -69,27 +69,31 @@ def save_credentials(
     return path
 
 
-def _latest_credential_file(directory: Path = CREDENTIALS_DIR) -> Path | None:
-    """Return the latest credential JSON file in the directory, or None."""
+def list_credential_files(directory: Path = CREDENTIALS_DIR) -> list[Path]:
+    """Return all credential JSON files in the directory, newest first."""
     if not directory.is_dir():
-        return None
-    files = sorted(directory.glob("*.json"), reverse=True)
-    return files[0] if files else None
+        return []
+    return sorted(directory.glob("*.json"), reverse=True)
 
 
-def load_credentials(directory: Path = CREDENTIALS_DIR) -> list[Credential]:
-    """Load credentials from the latest JSON file in the directory."""
-    path = _latest_credential_file(directory)
-    if path is None:
-        msg = f"No credential files found in {directory}"
-        raise FileNotFoundError(msg)
+def load_credentials_from(path: Path) -> list[Credential]:
+    """Load credentials from a specific JSON file."""
     data = json.loads(path.read_text())
     return [Credential.from_dict(d) for d in data]
 
 
+def load_credentials(directory: Path = CREDENTIALS_DIR) -> list[Credential]:
+    """Load credentials from the latest JSON file in the directory."""
+    files = list_credential_files(directory)
+    if not files:
+        msg = f"No credential files found in {directory}"
+        raise FileNotFoundError(msg)
+    return load_credentials_from(files[0])
+
+
 def credential_exists(directory: Path = CREDENTIALS_DIR) -> bool:
     """Check if any credential file exists in the directory."""
-    return _latest_credential_file(directory) is not None
+    return len(list_credential_files(directory)) > 0
 
 
 def extract_domain(url: str) -> str:

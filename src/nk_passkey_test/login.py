@@ -7,8 +7,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from nk_passkey_test.common import (
     LOGIN_TITLE_KEYWORDS,
     create_driver,
-    credential_exists,
-    load_credentials,
+    list_credential_files,
+    load_credentials_from,
     load_url,
     print_error,
     setup_virtual_authenticator,
@@ -23,13 +23,27 @@ LOGIN_DETECT_TIMEOUT = 60  # Login success detection timeout (seconds)
 
 def main() -> None:
     try:
-        # 1. Check if credentials exist
-        if not credential_exists():
+        # 1. List credential files and let user choose
+        files = list_credential_files()
+        if not files:
             print(
                 "クレデンシャルがまだありません。先に register.py を実行してください。"
             )
             wait_for_enter("Enter を押して終了...")
             return
+
+        if len(files) == 1:
+            selected = files[0]
+        else:
+            print("使用するクレデンシャルを選択してください:")
+            for i, f in enumerate(files, 1):
+                print(f"  {i}) {f.name}")
+            while True:
+                choice = input(f"番号を入力 [1-{len(files)}]: ").strip()
+                if choice.isdigit() and 1 <= int(choice) <= len(files):
+                    selected = files[int(choice) - 1]
+                    break
+                print("無効な入力です。もう一度入力してください。")
 
         # 2. Launch browser + set up Virtual Authenticator
         url = load_url()
@@ -37,10 +51,12 @@ def main() -> None:
         setup_virtual_authenticator(driver)
 
         # 3. Load credentials + add them
-        credentials = load_credentials()
+        credentials = load_credentials_from(selected)
         for cred in credentials:
             driver.add_credential(cred)
-        print(f"クレデンシャルを {len(credentials)} 件読み込みました。")
+        print(
+            f"クレデンシャルを {len(credentials)} 件読み込みました。({selected.name})"
+        )
 
         # 4. Access the URL
         print(f"ページにアクセスしています: {url}")

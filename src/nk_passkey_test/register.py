@@ -8,7 +8,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from nk_passkey_test.common import (
     create_driver,
-    credential_exists,
     load_url,
     print_error,
     save_credentials,
@@ -62,13 +61,7 @@ def navigate_to_passkey_setup(driver: webdriver.Chrome) -> None:
 
 def main() -> None:
     try:
-        # 1. Check if credentials exist
-        if credential_exists():
-            print("クレデンシャルは既に存在します。")
-            wait_for_enter("Enter を押して終了...")
-            return
-
-        # 2. Launch browser + set up Virtual Authenticator
+        # 1. Launch browser + set up Virtual Authenticator
         url = load_url()
         driver = create_driver()
         setup_virtual_authenticator(driver)
