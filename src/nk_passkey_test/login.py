@@ -11,6 +11,7 @@ from nk_passkey_test.common import (
     load_credentials_from,
     load_url,
     print_error,
+    save_credentials_to,
     setup_virtual_authenticator,
     wait_for_enter,
 )
@@ -78,7 +79,13 @@ def main() -> None:
         print(f"ログイン後のURL: {driver.current_url}")
         print(f"ページタイトル: {driver.title}")
 
-        # 7. Success message
+        # 7. Update credentials (signCount) for next login
+        updated = driver.get_credentials()
+        if updated:
+            save_credentials_to(updated, selected)
+            print("クレデンシャルを更新しました。(signCount 同期)")
+
+        # 8. Success message
         print("\nパスキーログインに成功しました。")
         wait_for_enter("Enter を押して終了...")
 

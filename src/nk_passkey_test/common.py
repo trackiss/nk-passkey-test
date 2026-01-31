@@ -64,9 +64,14 @@ def save_credentials(
     directory.mkdir(parents=True, exist_ok=True)
     filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".json"
     path = directory / filename
+    save_credentials_to(credentials, path)
+    return path
+
+
+def save_credentials_to(credentials: list[Credential], path: Path) -> None:
+    """Save credentials list to a specific file path."""
     data = [c.to_dict() for c in credentials]
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-    return path
 
 
 def list_credential_files(directory: Path = CREDENTIALS_DIR) -> list[Path]:

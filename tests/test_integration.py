@@ -15,6 +15,7 @@ from nk_passkey_test.common import (
     extract_domain,
     load_credentials_from,
     save_credentials,
+    save_credentials_to,
 )
 from nk_passkey_test.login import LOGIN_DETECT_TIMEOUT, SELECTOR_PASSKEY_LOGIN
 from nk_passkey_test.register import (
@@ -27,11 +28,12 @@ from nk_passkey_test.register import (
 HUMAN_TIMEOUT = 300
 
 
-def _do_passkey_login(login_url: str, cred_file: Path) -> None:
-    """Perform a single passkey login.
+def _do_passkey_login(login_url: str, cred_file: Path) -> list[dict]:
+    """Perform a single passkey login and return updated credential dicts.
 
     Launches a fresh browser, loads credentials from the given file,
-    and performs passkey login.
+    performs passkey login, updates the credential file with the new
+    signCount, and returns the raw credential dicts after login.
     """
     options = wd.ChromeOptions()
     options.add_experimental_option("detach", False)
@@ -78,6 +80,14 @@ def _do_passkey_login(login_url: str, cred_file: Path) -> None:
             assert kw not in page_title, (
                 f"ページタイトルに '{kw}' が含まれています: {page_title}"
             )
+
+        # Save updated credentials (signCount synced)
+        updated = login_driver.get_credentials()
+        if updated:
+            save_credentials_to(updated, cred_file)
+
+        # Return raw dicts for signCount inspection
+        return json.loads(cred_file.read_text())
 
     finally:
         try:
@@ -202,9 +212,23 @@ class TestPasskeyIntegration:
         except Exception:
             pass
 
-        # ==================== Phase 2: Login ====================
-        print("\n===== Phase 2: Login =====")
+        # ==================== Phase 2: Login (1st) ====================
+        print("\n===== Phase 2: Login (1st) =====")
         assert credential_exists(), "クレデンシャルが存在しません"
 
-        _do_passkey_login(login_url, saved_path)
-        print("Phase 2 (Login) 完了")
+        data_after_login1 = _do_passkey_login(login_url, saved_path)
+        sign_count_1 = data_after_login1[0]["signCount"]
+        print(f"1回目ログイン後の signCount: {sign_count_1}")
+        print("Phase 2 (Login 1st) 完了")
+
+        # ==================== Phase 3: Login (2nd) ====================
+        print("\n===== Phase 3: Login (2nd) =====")
+
+        data_after_login2 = _do_passkey_login(login_url, saved_path)
+        sign_count_2 = data_after_login2[0]["signCount"]
+        print(f"2回目ログイン後の signCount: {sign_count_2}")
+
+        assert sign_count_2 > sign_count_1, (
+            f"signCount が増加していません: {sign_count_1} → {sign_count_2}"
+        )
+        print("Phase 3 (Login 2nd) 完了 — signCount 増加を確認")
